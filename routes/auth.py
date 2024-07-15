@@ -1,6 +1,7 @@
 import os
 import uuid
 import bcrypt
+from dotenv import load_dotenv
 from fastapi import APIRouter, Depends, HTTPException
 import jwt
 from sqlalchemy.orm import Session
@@ -10,7 +11,7 @@ from models.user_model import UserModel
 from pydantic_schema.user_create import UserCreate
 from pydantic_schema.user_login import UserLogin
 
-
+load_dotenv()
 router = APIRouter()
 
 @router.post("/signup", status_code=201)
@@ -54,7 +55,7 @@ def signin(user: UserLogin, db: Session=Depends(get_db)):
         raise HTTPException(status_code=400, detail="Password is incorrect!")
     
     # Buat token jwt untuk autentikasi login
-    token = jwt.encode({"id": user_db.id}, "PASSWORD_KEY")
+    token = jwt.encode({"id": user_db.id}, os.getenv("PASSWORD_KEY"))
     
     # Kembalikan token jwt dan user untuk autentikasi login
     return {"token": token, "user": user_db}
