@@ -1,5 +1,6 @@
-from sqlalchemy import TEXT, VARCHAR, Column
+from sqlalchemy import TEXT, VARCHAR, Column, ForeignKey
 from models.base_model import Base
+from sqlalchemy.orm import relationship
 
 
 class Post(Base):
@@ -8,3 +9,6 @@ class Post(Base):
     id = Column(TEXT, primary_key=True)
     image_url = Column(TEXT)
     caption = Column(VARCHAR(255))
+    user_id = Column(TEXT, ForeignKey('users.id'))
+
+    user = relationship("UserModel", back_populates="posts")

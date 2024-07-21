@@ -1,5 +1,6 @@
 from sqlalchemy import TEXT, VARCHAR, Column, LargeBinary
 from models.base_model import Base
+from sqlalchemy.orm import relationship
 
 
 class UserModel(Base):
@@ -9,3 +10,5 @@ class UserModel(Base):
     username = Column(VARCHAR(100))
     email = Column(VARCHAR(100))
     password = Column(LargeBinary)
+    
+    posts = relationship("Post", back_populates="user")

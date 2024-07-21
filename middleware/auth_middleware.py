@@ -1,5 +1,9 @@
+import os
+from dotenv import load_dotenv
 from fastapi import HTTPException, Header
 import jwt
+
+load_dotenv()
 
 def auth_middleware(x_auth_token=Header()):
     try:
@@ -8,7 +12,7 @@ def auth_middleware(x_auth_token=Header()):
             raise HTTPException(status_code=401, detail="Authentication token is required")
         
         # Buat variable token yang di verifikasi
-        verified_token = jwt.decode(x_auth_token, "PASSWORD_KEY", ["HS256"])
+        verified_token = jwt.decode(x_auth_token, os.getenv("PASSWORD_KEY"), ["HS256"])
         
         # Periksa apakah token nya ter verifikasi
         if not verified_token:
