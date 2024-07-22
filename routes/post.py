@@ -116,21 +116,38 @@ def saved_post(post: SavedPost,
     if saved_post:
         db.delete(saved_post)
         db.commit()
-        return {"message": "Post removed from saved list"}
+        return {"message": False}
     else:
         new_saved_post = SavedModel(id=str(uuid.uuid4()), post_id=post.post_id, user_id=user_id)
         db.add(new_saved_post)
         db.commit()
-        return {"message": "Post added to saved list"}
+        return {"message": True}
     
 @router.get("/list/saved")
-def list_saved_post(db: Session=Depends(get_db),
-                    auth_details=Depends(auth_middleware)):
-    
+def list_saved_post(db: Session = Depends(get_db),
+                    auth_details = Depends(auth_middleware)):
     user_id = auth_details["uid"]
     
-    saved_post = db.query(SavedModel).filter(SavedModel.user_id == user_id).options(
-        joinedload(SavedModel.post),
+    saved_posts = db.query(SavedModel).filter(SavedModel.user_id == user_id).options(
+        joinedload(SavedModel.post).joinedload(Post.user),
     ).all()
     
-    return saved_post
+    # Logging for debugging
+    for saved_post in saved_posts:
+        logging.info(f"Saved post: {saved_post.post}")
+    
+    response = []
+    for saved_post in saved_posts:
+        post = saved_post.post
+        response.append({
+            "id": post.id,
+            "image_url": post.image_url,
+            "caption": post.caption,
+            "user": {
+                "id": post.user.id,
+                "username": post.user.username,
+                "email": post.user.email
+            }
+        })
+    
+    return response

@@ -4,7 +4,7 @@ import bcrypt
 from dotenv import load_dotenv
 from fastapi import APIRouter, Depends, HTTPException
 import jwt
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, joinedload
 from db import get_db
 from middleware.auth_middleware import auth_middleware
 from models.user_model import UserModel
@@ -63,7 +63,8 @@ def signin(user: UserLogin, db: Session=Depends(get_db)):
 @router.get("/me")
 def current_user(db: Session=Depends(get_db), user_dict=Depends(auth_middleware)):
     # Cek jika user saat ini ter autentikasi atau tidak
-    user = db.query(UserModel).filter(UserModel.id == user_dict["uid"]).first()
+    user = db.query(UserModel).filter(UserModel.id == user_dict["uid"]).options(
+        joinedload(UserModel.saved_posts)).first()
     
     # jika tidak maka kembalikan "user not found!"
     if not user:
