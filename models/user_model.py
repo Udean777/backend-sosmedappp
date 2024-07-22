@@ -12,3 +12,4 @@ class UserModel(Base):
     password = Column(LargeBinary)
     
     posts = relationship("Post", back_populates="user")
+    saved_posts = relationship("SavedModel", back_populates="user")

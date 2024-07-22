@@ -11,7 +11,9 @@ import logging
 from db import get_db
 from middleware.auth_middleware import auth_middleware
 from models.post_model import Post
+from models.saved_model import SavedModel
 from models.user_model import UserModel
+from pydantic_schema.saved_post import SavedPost
 
 load_dotenv()
 
@@ -101,3 +103,34 @@ def list_post(db: Session = Depends(get_db),
     except SQLAlchemyError as e:
         logging.error("Database error occurred", exc_info=True)
         raise HTTPException(status_code=500, detail=str(e))
+
+@router.post("/saved")
+def saved_post(post: SavedPost,
+               db: Session=Depends(get_db),
+               auth_details=Depends(auth_middleware)):
+    
+    user_id =  auth_details["uid"]
+    
+    saved_post = db.query(SavedModel).filter(SavedModel.post_id == post.post_id, SavedModel.user_id == user_id).first()
+    
+    if saved_post:
+        db.delete(saved_post)
+        db.commit()
+        return {"message": "Post removed from saved list"}
+    else:
+        new_saved_post = SavedModel(id=str(uuid.uuid4()), post_id=post.post_id, user_id=user_id)
+        db.add(new_saved_post)
+        db.commit()
+        return {"message": "Post added to saved list"}
+    
+@router.get("/list/saved")
+def list_saved_post(db: Session=Depends(get_db),
+                    auth_details=Depends(auth_middleware)):
+    
+    user_id = auth_details["uid"]
+    
+    saved_post = db.query(SavedModel).filter(SavedModel.user_id == user_id).options(
+        joinedload(SavedModel.post),
+    ).all()
+    
+    return saved_post
