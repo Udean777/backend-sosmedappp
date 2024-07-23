@@ -13,3 +13,4 @@ class UserModel(Base):
     
     posts = relationship("Post", back_populates="user")
     saved_posts = relationship("SavedModel", back_populates="user")
+    liked_posts = relationship("LikedModel", back_populates="user")

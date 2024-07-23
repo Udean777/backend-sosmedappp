@@ -10,6 +10,7 @@ import logging
 
 from db import get_db
 from middleware.auth_middleware import auth_middleware
+from models.liked_model import LikedModel
 from models.post_model import Post
 from models.saved_model import SavedModel
 from models.user_model import UserModel
@@ -105,6 +106,52 @@ def list_post(db: Session = Depends(get_db),
     except SQLAlchemyError as e:
         logging.error("Database error occurred", exc_info=True)
         raise HTTPException(status_code=500, detail=str(e))
+    
+@router.post("/liked")
+def liked_post(post: SavedPost,
+               db: Session=Depends(get_db),
+               auth_details=Depends(auth_middleware)):
+    user_id = auth_details["uid"]
+    
+    liked_post = db.query(LikedModel).filter(LikedModel.post_id == post.post_id, LikedModel.user_id == user_id).first()
+    
+    if liked_post:
+        db.delete(liked_post)
+        db.commit()
+        return {"message": False}
+    else:
+        new_liked_post = LikedModel(id=str(uuid.uuid4()), post_id=post.post_id, user_id=user_id)
+        db.add(new_liked_post)
+        db.commit()
+        return {"message": True}
+    
+@router.get("/list/liked")
+def list_liked_post(db: Session = Depends(get_db),
+                    auth_details = Depends(auth_middleware)):
+    user_id = auth_details["uid"]
+    
+    liked_posts = db.query(LikedModel).filter(LikedModel.user_id == user_id).options(
+        joinedload(LikedModel.post).joinedload(Post.user),
+    ).all()
+    
+    response = []
+    for liked_post in liked_posts:
+        post = liked_post.post
+        response.append({
+            "id": post.id,
+            "image_url": post.image_url,
+            "caption": post.caption,
+            "created_at": post.created_at,
+            "updated_at": post.updated_at,
+            "user": {
+                "id": post.user.id,
+                "username": post.user.username,
+                "email": post.user.email
+            }
+        })
+    
+    return response
+
 
 @router.post("/saved")
 def saved_post(post: SavedPost,
