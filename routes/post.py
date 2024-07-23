@@ -1,4 +1,5 @@
 import os
+from typing import List
 import uuid
 import cloudinary.uploader
 from dotenv import load_dotenv
@@ -10,10 +11,12 @@ import logging
 
 from db import get_db
 from middleware.auth_middleware import auth_middleware
+from models.comment_model import CommentModel
 from models.liked_model import LikedModel
 from models.post_model import Post
 from models.saved_model import SavedModel
 from models.user_model import UserModel
+from pydantic_schema.comment_post import CommentCreate, CommentResponse
 from pydantic_schema.saved_post import SavedPost
 
 load_dotenv()
@@ -85,16 +88,46 @@ def upload_post(image_url: UploadFile = File(...),
 def list_post(db: Session = Depends(get_db),
               auth_details = Depends(auth_middleware)):
     try:
-        posts = db.query(Post).options(joinedload(Post.user)).all()
+        user_id = auth_details["uid"]
+        
+        # Query posts with related data
+        posts = db.query(Post).options(
+            joinedload(Post.user),
+            joinedload(Post.liked_posts).joinedload(LikedModel.user),
+            joinedload(Post.saved_posts).joinedload(SavedModel.user),
+            joinedload(Post.comments).joinedload(CommentModel.user)
+        ).all()
         
         response = []
         for post in posts:
+            liked_by_user = any(liked.user_id == user_id for liked in post.liked_posts)
+            saved_by_user = any(saved.user_id == user_id for saved in post.saved_posts)
+            
+            comments = []
+            for comment in post.comments:
+                comments.append({
+                    "id": comment.id,
+                    "content": comment.content,
+                    "created_at": comment.created_at,
+                    "updated_at": comment.updated_at,
+                    "user": {
+                        "id": comment.user.id,
+                        "username": comment.user.username,
+                        "email": comment.user.email
+                    }
+                })
+                
             response.append({
                 "id": post.id,
                 "image_url": post.image_url,
                 "caption": post.caption,
                 "created_at": post.created_at,
                 "updated_at": post.updated_at,
+                "liked_by_user": liked_by_user,
+                "saved_by_user": saved_by_user,
+                "likes_count": len(post.liked_posts),
+                "saves_count": len(post.saved_posts),
+                "comments": comments,
                 "user": {
                     "id": post.user.id,
                     "username": post.user.username,
@@ -152,7 +185,6 @@ def list_liked_post(db: Session = Depends(get_db),
     
     return response
 
-
 @router.post("/saved")
 def saved_post(post: SavedPost,
                db: Session=Depends(get_db),
@@ -202,3 +234,41 @@ def list_saved_post(db: Session = Depends(get_db),
         })
     
     return response
+
+@router.post("/comments")
+def create_comment(comment: CommentCreate,
+                   db: Session = Depends(get_db),
+                   auth_details = Depends(auth_middleware)):
+    user_id = auth_details["uid"]
+    
+    new_comment = CommentModel(
+        id=str(uuid.uuid4()),
+        post_id=comment.post_id,
+        user_id=user_id,
+        content=comment.content
+    )
+    
+    db.add(new_comment)
+    db.commit()
+    db.refresh(new_comment)
+    
+    return new_comment
+
+@router.get("/posts/{post_id}/comments", response_model=List[CommentResponse])
+def list_comments(post_id: str, db: Session = Depends(get_db)):
+    comments = db.query(CommentModel).filter(CommentModel.post_id == post_id).all()
+    
+    return comments
+
+@router.delete("/comments/{comment_id}")
+def delete_comment(comment_id: str, db: Session = Depends(get_db), auth_details = Depends(auth_middleware)):
+    user_id = auth_details["uid"]
+    comment = db.query(CommentModel).filter(CommentModel.id == comment_id, CommentModel.user_id == user_id).first()
+    
+    if not comment:
+        raise HTTPException(status_code=404, detail="Comment not found or not authorized")
+    
+    db.delete(comment)
+    db.commit()
+    
+    return {"message": "Comment deleted successfully"}

@@ -14,3 +14,5 @@ class Post(Base):
     
     user = relationship("UserModel", back_populates="posts")
     saved_posts = relationship("SavedModel", back_populates="post")
+    liked_posts = relationship("LikedModel", back_populates="post")
+    comments = relationship("CommentModel", back_populates="post", cascade="all, delete-orphan")
