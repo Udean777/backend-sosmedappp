@@ -64,7 +64,8 @@ def signin(user: UserLogin, db: Session=Depends(get_db)):
 def current_user(db: Session=Depends(get_db), user_dict=Depends(auth_middleware)):
     # Cek jika user saat ini ter autentikasi atau tidak
     user = db.query(UserModel).filter(UserModel.id == user_dict["uid"]).options(
-        joinedload(UserModel.saved_posts)).first()
+        joinedload(UserModel.saved_posts),
+        joinedload(UserModel.liked_posts)).first()
     
     # jika tidak maka kembalikan "user not found!"
     if not user:
