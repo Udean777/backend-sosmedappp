@@ -254,12 +254,6 @@ def create_comment(comment: CommentCreate,
     
     return new_comment
 
-@router.get("/posts/{post_id}/comments", response_model=List[CommentResponse])
-def list_comments(post_id: str, db: Session = Depends(get_db)):
-    comments = db.query(CommentModel).filter(CommentModel.post_id == post_id).all()
-    
-    return comments
-
 @router.delete("/comments/{comment_id}")
 def delete_comment(comment_id: str, db: Session = Depends(get_db), auth_details = Depends(auth_middleware)):
     user_id = auth_details["uid"]
